@@ -14,7 +14,7 @@ func createOrg(client *gitea.Client, name string, description string) {
 		if err.Error() == "404 Not Found" {
 			org, err = client.CreateOrg(gitea.CreateOrgOption{UserName: name, Visibility: "public"})
 			if err != nil {
-				//TODO: return values
+				// TODO: return values
 				return
 			}
 			fmt.Printf("Organisation %s created.\n", org.UserName)
@@ -30,14 +30,30 @@ func createOrgRepo(client *gitea.Client, name string, description string) {
 		fmt.Println(err)
 		return
 	}
-	//fmt.Printf("%s\n", repos)
+
 	if len(repos) == 0 {
+		// TODO: hardcoded
 		repo, err := client.CreateOrgRepo("werkgebieden", gitea.CreateRepoOption{Name: name, Description: description, Private: true})
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
 		fmt.Printf("Repo created on %s\n", repo.Created)
+	} else {
+		fmt.Printf("Repo %s already exist\n", name)
+	}
+}
+
+func listAllReposOrg(client *gitea.Client, name string) {
+	// List organisations repositories (in this case default pagenation options)
+	repos, err := client.ListOrgRepos("werkgebieden", gitea.ListOrgReposOptions{})
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	// Print name of each repo we got in repos
+	for _, repo := range repos {
+		fmt.Printf("Repo name %s \n", repo.Name)
 	}
 }
 
@@ -49,36 +65,7 @@ func main() {
 
 	createOrg(client, "test", "Alle werkgebieden in business")
 
-	// List organisations repositories (in this case default pagenation options)
-	repos, err := client.ListOrgRepos("werkgebieden", gitea.ListOrgReposOptions{})
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	// Print name of each repo we got in repos
-	for _, repo := range repos {
-		fmt.Printf("Repo name %s \n", repo.Name)
-	}
-
 	createOrgRepo(client, "w00006", "Werkgebieden-00006")
 
-	/*
-		// Under authorized repo
-		newRepo, err := client.CreateRepo(gitea.CreateRepoOption{Name: "self", Description: "For my-self", Private: true})
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		fmt.Printf("%s\n", newRepo.Created)
-	*/
-
-	// New repo in orginisation (only Owner team)
-	/*
-		newOrgRepo, err := client.CreateOrgRepo("werkgebieden", gitea.CreateRepoOption{Name: "w00003", Description: "Werkgebieden-00003", Private: true})
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		fmt.Printf("%s\n", newOrgRepo.Created)
-	*/
+	listAllReposOrg(client, "werkgebieden")
 }
