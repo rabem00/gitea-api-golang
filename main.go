@@ -12,14 +12,14 @@ func createOrgRepo(client *gitea.Client, name string, description string) {
 		fmt.Println(err)
 		return
 	}
-	fmt.Printf("%s\n", repos)
+	//fmt.Printf("%s\n", repos)
 	if len(repos) == 0 {
-		newOrgRepo, err := client.CreateOrgRepo("werkgebieden", gitea.CreateRepoOption{Name: name, Description: description, Private: true})
+		repo, err := client.CreateOrgRepo("werkgebieden", gitea.CreateRepoOption{Name: name, Description: description, Private: true})
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-		fmt.Printf("%s\n", newOrgRepo.Created)
+		fmt.Printf("Repo created on %s\n", repo.Created)
 	}
 }
 
@@ -46,12 +46,10 @@ func main() {
 	}
 	// Print name of each repo we got in repos
 	for _, repo := range repos {
-		if repo.HasPullRequests {
-			fmt.Printf("Repo %s has pull-request\n", repo.Name)
-		}
+		fmt.Printf("Repo name %s \n", repo.Name)
 	}
 
-	createOrgRepo(client, "w00005", "Werkgebieden-00005")
+	createOrgRepo(client, "w00006", "Werkgebieden-00006")
 
 	/*
 		newRepo, err := client.CreateRepo(gitea.CreateRepoOption{Name: "self", Description: "For my-self", Private: true})
