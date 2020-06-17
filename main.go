@@ -6,6 +6,24 @@ import (
 	"code.gitea.io/sdk/gitea"
 )
 
+func createOrg(client *gitea.Client, name string, description string) {
+	// Get an organisation by name
+	org, err := client.GetOrg(name)
+
+	if err != nil {
+		if err.Error() == "404 Not Found" {
+			org, err = client.CreateOrg(gitea.CreateOrgOption{UserName: name, Visibility: "public"})
+			if err != nil {
+				//TODO: return values
+				return
+			}
+			fmt.Printf("Organisation %s created.\n", org.UserName)
+		}
+		return
+	}
+	fmt.Printf("Organisation %s already exist with ID %d.\n", name, org.ID)
+}
+
 func createOrgRepo(client *gitea.Client, name string, description string) {
 	repos, err := client.SearchRepos(gitea.SearchRepoOptions{Keyword: name, Private: true})
 	if err != nil {
@@ -29,14 +47,7 @@ func main() {
 	// Setup new API connection
 	client := gitea.NewClient("http://192.168.2.40:3000", "3f0bf456ab473c30cdcc67b460989c30f015536c")
 
-	// Get an organisation by name
-	org, err := client.GetOrg("werkgebieden")
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	// Print field of organisation; fullname, description, etc
-	fmt.Printf("%s\n", org.FullName)
+	createOrg(client, "test", "Alle werkgebieden in business")
 
 	// List organisations repositories (in this case default pagenation options)
 	repos, err := client.ListOrgRepos("werkgebieden", gitea.ListOrgReposOptions{})
@@ -52,6 +63,7 @@ func main() {
 	createOrgRepo(client, "w00006", "Werkgebieden-00006")
 
 	/*
+		// Under authorized repo
 		newRepo, err := client.CreateRepo(gitea.CreateRepoOption{Name: "self", Description: "For my-self", Private: true})
 		if err != nil {
 			fmt.Println(err)
