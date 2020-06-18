@@ -57,6 +57,20 @@ func listAllReposOrg(client *gitea.Client, name string) {
 	}
 }
 
+// TODO: should be LDAP
+func createUser(client *gitea.Client, username string, emailname string) *gitea.User {
+	bFalse := false
+	user, _ := client.GetUserInfo(username)
+	if user.ID != 0 {
+		return user
+	}
+	user, err := client.AdminCreateUser(gitea.CreateUserOption{Username: username, Password: username + "!Q", Email: emailname + "@belastingdienst.nl", MustChangePassword: &bFalse, SendNotify: bFalse})
+	if err != nil {
+		fmt.Println(err)
+	}
+	return user
+}
+
 func main() {
 	// Token example: 3f0bf456ab473c30cdcc67b460989c30f015536c
 
@@ -68,4 +82,7 @@ func main() {
 	createOrgRepo(client, "w00006", "Werkgebieden-00006")
 
 	listAllReposOrg(client, "werkgebieden")
+
+	user := createUser(client, "test01", "m.rabelink")
+	fmt.Println("%s\n", user.Created)
 }
