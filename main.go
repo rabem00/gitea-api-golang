@@ -52,6 +52,23 @@ func createOrgRepo(client *gitea.Client, name string, description string, organi
 	}
 }
 
+func createTeam(client *gitea.Client, org string, name string) {
+	var setTeamOptions gitea.CreateTeamOption
+
+	setTeamOptions.Name = name
+	setTeamOptions.Description = "Team for workspace to work with multiple persons on one repository"
+	setTeamOptions.Permission = "write"
+	//setTeamOptions.Units = [...]string{"repo.code", "repo.issues", "repo.pulls"}
+	setTeamOptions.Units = []string{"repo.code", "repo.issues", "repo.pulls"}
+
+	team, err := client.CreateTeam(org, setTeamOptions)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println(team.Name + " created.")
+}
+
 func listAllReposOrg(client *gitea.Client, name string) {
 	// List organisations repositories (in this case default pagenation options)
 	repos, err := client.ListOrgRepos(name, gitea.ListOrgReposOptions{})
@@ -74,6 +91,7 @@ func printUsage() {
 	fmt.Println("listrepos\t- list repositories of an organisation")
 	fmt.Println("createorg\t- to create an organisation")
 	fmt.Println("createorgrepo\t- to create a repository in an organisation")
+	fmt.Println("createteam\t- to create a team in an organisation")
 }
 
 func main() {
@@ -110,6 +128,10 @@ func main() {
 	createOrgRepoDescFlag := createorgrepo.String("d", "", "Repository description.")
 	orgFlag := createorgrepo.String("o", "", "In which organisation to create the repo.")
 
+	createteam := flag.NewFlagSet("createteam", flag.ExitOnError)
+	orgFlag = createteam.String("o", "", "In which organisation to create the team.")
+	teamNameFlag := createteam.String("n", "", "The name of the team.")
+
 	// A subcommand is needed
 	if len(os.Args) < 2 {
 		printUsage()
@@ -140,27 +162,15 @@ func main() {
 		} else {
 			createorgrepo.Usage()
 		}
+	case "createteam":
+		createteam.Parse(os.Args[2:])
+		if *orgFlag != "" && *teamNameFlag != "" {
+			createTeam(client, *orgFlag, *teamNameFlag)
+		} else {
+			createteam.Usage()
+		}
 	default:
 		printUsage()
 		os.Exit(1)
 	}
 }
-
-/*
-	//user := createUser(client, "test01", "m.rabelink")
-	//fmt.Println("%s\n", user.Created)
-
-// TODO: should be LDAP
-func createUser(client *gitea.Client, username string, emailname string) *gitea.User {
-	bFalse := false
-	user, _ := client.GetUserInfo(username)
-	if user.ID != 0 {
-		return user
-	}
-	user, err := client.AdminCreateUser(gitea.CreateUserOption{Username: username, Password: username + "!Q", Email: emailname + "@belastingdienst.nl", MustChangePassword: &bFalse, SendNotify: bFalse})
-	if err != nil {
-		fmt.Println(err)
-	}
-	return user
-}
-*/
