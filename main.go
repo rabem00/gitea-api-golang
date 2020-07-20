@@ -1,18 +1,18 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
+	"os"
 
 	"code.gitea.io/sdk/gitea"
 )
 
-var listReposFlag = flag.String("lr", "", "List all repositories for certain workspace (eq organisation)")
-var createOrgFlag = flag.String("co", "", "Create a workspace (eq organisation). Needs flag -cod")
-var createOrgDescFlag = flag.String("cod", "", "Workspace (eq organisation) description. Needs flag -co")
-var createOrgRepoFlag = flag.String("cr", "", "Create a repository in workspace (eq organisation). Needs flags -crd/-org")
-var createOrgRepoDescFlag = flag.String("crd", "", "Repository description. Needs flag -cr/-org")
-var orgFlag = flag.String("org", "", "Organisation to use. Needs flag -cr/-crd")
+type Giteaconf struct {
+	Baseurl string `json:"baseurl"`
+	Token   string `json:"token"`
+}
 
 func createOrg(client *gitea.Client, name string, description string) {
 	// Get an organisation by name
@@ -69,6 +69,87 @@ func listAllReposOrg(client *gitea.Client, name string) {
 	}
 }
 
+func printUsage() {
+	fmt.Println("Expected a subcommand:")
+	fmt.Println("listrepos\t- list repositories of an organisation")
+	fmt.Println("createorg\t- to create an organisation")
+	fmt.Println("createorgrepo\t- to create a repository in an organisation")
+}
+
+func main() {
+	// Open the config file
+	configFile, err := os.Open("api-config.json")
+	if err != nil {
+		fmt.Println(err)
+	}
+	// Defer the closing of the config file so that we can parse it later on
+	defer configFile.Close()
+
+	var giteaconf Giteaconf
+
+	decoder := json.NewDecoder(configFile)
+	err = decoder.Decode(&giteaconf)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// Setup new API connection
+	client := gitea.NewClient(giteaconf.Baseurl, giteaconf.Token)
+
+	listrepos := flag.NewFlagSet("listrepos", flag.ExitOnError)
+	listReposFlag := listrepos.String("o", "", "Which organisation to list the repos of.")
+
+	// Flag set create an organisation
+	createorg := flag.NewFlagSet("createorg", flag.ExitOnError)
+	createOrgFlag := createorg.String("co", "", "Create a workspace (eq organisation).")
+	createOrgDescFlag := createorg.String("cod", "", "Workspace (eq organisation) description.")
+
+	// Flag set create organisation repository
+	createorgrepo := flag.NewFlagSet("createorgrepo", flag.ExitOnError)
+	createOrgRepoFlag := createorgrepo.String("r", "", "Create a repository in a workspace (eq organisation).")
+	createOrgRepoDescFlag := createorgrepo.String("d", "", "Repository description.")
+	orgFlag := createorgrepo.String("o", "", "In which organisation to create the repo.")
+
+	// A subcommand is needed
+	if len(os.Args) < 2 {
+		printUsage()
+		os.Exit(1)
+	}
+
+	switch os.Args[1] {
+	case "listrepos":
+		listrepos.Parse(os.Args[2:])
+		if *listReposFlag != "" {
+			listAllReposOrg(client, *listReposFlag)
+		} else {
+			listrepos.Usage()
+		}
+	// Create an organisation
+	case "createorg":
+		createorg.Parse(os.Args[2:])
+		if *createOrgDescFlag != "" && *createOrgFlag != "" {
+			createOrg(client, *createOrgFlag, *createOrgDescFlag)
+		} else {
+			createorg.Usage()
+		}
+	// Create a repository in an organisation
+	case "createorgrepo":
+		createorgrepo.Parse(os.Args[2:])
+		if *createOrgRepoFlag != "" && *createOrgRepoDescFlag != "" && *orgFlag != "" {
+			createOrgRepo(client, *createOrgRepoFlag, *createOrgRepoDescFlag, *orgFlag)
+		} else {
+			createorgrepo.Usage()
+		}
+	default:
+		printUsage()
+		os.Exit(1)
+	}
+}
+
+/*
+	//user := createUser(client, "test01", "m.rabelink")
+	//fmt.Println("%s\n", user.Created)
+
 // TODO: should be LDAP
 func createUser(client *gitea.Client, username string, emailname string) *gitea.User {
 	bFalse := false
@@ -82,33 +163,4 @@ func createUser(client *gitea.Client, username string, emailname string) *gitea.
 	}
 	return user
 }
-
-func main() {
-	// Token example: 6787577dd7665afeb801d653935a101f962d9da1
-
-	// Setup new API connection
-	client := gitea.NewClient("http://192.168.2.41:3000", "6787577dd7665afeb801d653935a101f962d9da1")
-
-	flag.Parse()
-
-	if *listReposFlag != "" {
-		listAllReposOrg(client, *listReposFlag)
-	} else {
-		flag.Usage()
-	}
-
-	if *createOrgDescFlag != "" && *createOrgFlag != "" {
-		createOrg(client, *createOrgFlag, *createOrgDescFlag)
-	} else {
-		flag.Usage()
-	}
-
-	if *createOrgRepoFlag != "" && *createOrgRepoDescFlag != "" && *orgFlag != "" {
-		createOrgRepo(client, *createOrgRepoFlag, *createOrgRepoDescFlag, *orgFlag)
-	} else {
-		flag.Usage()
-	}
-
-	//user := createUser(client, "test01", "m.rabelink")
-	//fmt.Println("%s\n", user.Created)
-}
+*/
