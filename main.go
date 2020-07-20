@@ -58,8 +58,7 @@ func createTeam(client *gitea.Client, org string, name string) {
 	setTeamOptions.Name = name
 	setTeamOptions.Description = "Team for workspace to work with multiple persons on one repository"
 	setTeamOptions.Permission = "write"
-	//setTeamOptions.Units = [...]string{"repo.code", "repo.issues", "repo.pulls"}
-	setTeamOptions.Units = []string{"repo.code", "repo.issues", "repo.pulls"}
+	setTeamOptions.Units = []string{"repo.code", "repo.issues", "repo.pulls", "repo.releases"}
 
 	team, err := client.CreateTeam(org, setTeamOptions)
 	if err != nil {
@@ -84,6 +83,22 @@ func listAllReposOrg(client *gitea.Client, name string) {
 	for _, repo := range repos {
 		fmt.Printf("Repo name %s \n", repo.Name)
 	}
+}
+
+func getTeamID(client *gitea.Client, org string, name string) (id int64) {
+	// Api http team search does not work and gitea sdk doesn't have
+	// this option. So some assumptions: orgname == teamname
+	teams, err := client.ListOrgTeams(org, gitea.ListTeamsOptions{})
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	for _, team := range teams {
+		if team.Name == org {
+			return team.ID
+		}
+	}
+	return int64(404)
 }
 
 func printUsage() {
