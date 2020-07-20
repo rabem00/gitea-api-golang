@@ -1,10 +1,18 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 
 	"code.gitea.io/sdk/gitea"
 )
+
+var listReposFlag = flag.String("lr", "", "List all repositories for certain workspace (eq organisation)")
+var createOrgFlag = flag.String("co", "", "Create a workspace (eq organisation). Needs flag -cod")
+var createOrgDescFlag = flag.String("cod", "", "Workspace (eq organisation) description. Needs flag -co")
+var createOrgRepoFlag = flag.String("cr", "", "Create a repository in workspace (eq organisation). Needs flags -crd/-org")
+var createOrgRepoDescFlag = flag.String("crd", "", "Repository description. Needs flag -cr/-org")
+var orgFlag = flag.String("org", "", "Organisation to use. Needs flag -cr/-crd")
 
 func createOrg(client *gitea.Client, name string, description string) {
 	// Get an organisation by name
@@ -12,7 +20,7 @@ func createOrg(client *gitea.Client, name string, description string) {
 
 	if err != nil {
 		if err.Error() == "404 Not Found" {
-			org, err = client.CreateOrg(gitea.CreateOrgOption{UserName: name, Visibility: "public"})
+			org, err = client.CreateOrg(gitea.CreateOrgOption{UserName: name, Visibility: "private"})
 			if err != nil {
 				// TODO: return values
 				return
@@ -24,7 +32,7 @@ func createOrg(client *gitea.Client, name string, description string) {
 	fmt.Printf("Organisation %s already exist with ID %d.\n", name, org.ID)
 }
 
-func createOrgRepo(client *gitea.Client, name string, description string) {
+func createOrgRepo(client *gitea.Client, name string, description string, organisation string) {
 	repos, err := client.SearchRepos(gitea.SearchRepoOptions{Keyword: name, Private: true})
 	if err != nil {
 		fmt.Println(err)
@@ -33,7 +41,7 @@ func createOrgRepo(client *gitea.Client, name string, description string) {
 
 	if len(repos) == 0 {
 		// TODO: hardcoded
-		repo, err := client.CreateOrgRepo("werkgebieden", gitea.CreateRepoOption{Name: name, Description: description, Private: true})
+		repo, err := client.CreateOrgRepo(organisation, gitea.CreateRepoOption{Name: name, Description: description, Private: true})
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -46,9 +54,13 @@ func createOrgRepo(client *gitea.Client, name string, description string) {
 
 func listAllReposOrg(client *gitea.Client, name string) {
 	// List organisations repositories (in this case default pagenation options)
-	repos, err := client.ListOrgRepos("werkgebieden", gitea.ListOrgReposOptions{})
+	repos, err := client.ListOrgRepos(name, gitea.ListOrgReposOptions{})
 	if err != nil {
 		fmt.Println(err)
+		return
+	}
+	if len(repos) == 0 {
+		fmt.Println("No repositories found!")
 		return
 	}
 	// Print name of each repo we got in repos
@@ -72,17 +84,31 @@ func createUser(client *gitea.Client, username string, emailname string) *gitea.
 }
 
 func main() {
-	// Token example: 3f0bf456ab473c30cdcc67b460989c30f015536c
+	// Token example: 6787577dd7665afeb801d653935a101f962d9da1
 
 	// Setup new API connection
-	client := gitea.NewClient("http://192.168.2.40:3000", "3f0bf456ab473c30cdcc67b460989c30f015536c")
+	client := gitea.NewClient("http://192.168.2.41:3000", "6787577dd7665afeb801d653935a101f962d9da1")
 
-	createOrg(client, "test", "Alle werkgebieden in business")
+	flag.Parse()
 
-	createOrgRepo(client, "w00006", "Werkgebieden-00006")
+	if *listReposFlag != "" {
+		listAllReposOrg(client, *listReposFlag)
+	} else {
+		flag.Usage()
+	}
 
-	listAllReposOrg(client, "werkgebieden")
+	if *createOrgDescFlag != "" && *createOrgFlag != "" {
+		createOrg(client, *createOrgFlag, *createOrgDescFlag)
+	} else {
+		flag.Usage()
+	}
 
-	user := createUser(client, "test01", "m.rabelink")
-	fmt.Println("%s\n", user.Created)
+	if *createOrgRepoFlag != "" && *createOrgRepoDescFlag != "" && *orgFlag != "" {
+		createOrgRepo(client, *createOrgRepoFlag, *createOrgRepoDescFlag, *orgFlag)
+	} else {
+		flag.Usage()
+	}
+
+	//user := createUser(client, "test01", "m.rabelink")
+	//fmt.Println("%s\n", user.Created)
 }
