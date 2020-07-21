@@ -85,8 +85,8 @@ func listAllReposOrg(client *gitea.Client, name string) {
 	}
 }
 
-func getTeamID(client *gitea.Client, org string, name string) (id int64) {
-	// Api http team search does not work and gitea sdk doesn't have
+func getTeamID(client *gitea.Client, org string) (id int64) {
+	// API http team search does not work and gitea sdk doesn't have
 	// this option. So some assumptions: orgname == teamname
 	teams, err := client.ListOrgTeams(org, gitea.ListTeamsOptions{})
 	if err != nil {
@@ -101,12 +101,26 @@ func getTeamID(client *gitea.Client, org string, name string) (id int64) {
 	return int64(404)
 }
 
+func addTeamRepo(client *gitea.Client, org string, repo string) {
+	id := getTeamID(client, org)
+	if id == 404 {
+		fmt.Println("Team id not found")
+		return
+	}
+	err := client.AddTeamRepository(id, org, repo)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+}
+
 func printUsage() {
 	fmt.Println("Expected a subcommand:")
 	fmt.Println("listrepos\t- list repositories of an organisation")
 	fmt.Println("createorg\t- to create an organisation")
 	fmt.Println("createorgrepo\t- to create a repository in an organisation")
 	fmt.Println("createteam\t- to create a team in an organisation")
+	fmt.Println("addteamrepo\t- to add a repository to a team")
 }
 
 func main() {
@@ -147,6 +161,10 @@ func main() {
 	orgFlag = createteam.String("o", "", "In which organisation to create the team.")
 	teamNameFlag := createteam.String("n", "", "The name of the team.")
 
+	addteamrepo := flag.NewFlagSet("addteamrepo", flag.ExitOnError)
+	orgFlag = addteamrepo.String("o", "", "Which organisation contains the team.")
+	repoFlag := addteamrepo.String("r", "", "Name of the repository")
+
 	// A subcommand is needed
 	if len(os.Args) < 2 {
 		printUsage()
@@ -183,6 +201,13 @@ func main() {
 			createTeam(client, *orgFlag, *teamNameFlag)
 		} else {
 			createteam.Usage()
+		}
+	case "addteamrepo":
+		addteamrepo.Parse(os.Args[2:])
+		if *orgFlag != "" && *repoFlag != "" {
+			addTeamRepo(client, *orgFlag, *repoFlag)
+		} else {
+			addteamrepo.Usage()
 		}
 	default:
 		printUsage()
