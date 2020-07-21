@@ -40,7 +40,7 @@ func createOrgRepo(client *gitea.Client, name string, description string, organi
 	}
 
 	if len(repos) == 0 {
-		// TODO: hardcoded
+		// TODO: for now only private repos
 		repo, err := client.CreateOrgRepo(organisation, gitea.CreateRepoOption{Name: name, Description: description, Private: true})
 		if err != nil {
 			fmt.Println(err)
@@ -85,7 +85,7 @@ func listAllReposOrg(client *gitea.Client, name string) {
 	}
 }
 
-func getTeamID(client *gitea.Client, org string) (id int64) {
+func getTeamID(client *gitea.Client, org string, teamName string) (id int64) {
 	// API http team search does not work and gitea sdk doesn't have
 	// this option. So some assumptions: orgname == teamname
 	teams, err := client.ListOrgTeams(org, gitea.ListTeamsOptions{})
@@ -94,20 +94,35 @@ func getTeamID(client *gitea.Client, org string) (id int64) {
 		return
 	}
 	for _, team := range teams {
-		if team.Name == org {
+		if team.Name == teamName {
 			return team.ID
 		}
 	}
 	return int64(404)
 }
 
-func addTeamRepo(client *gitea.Client, org string, repo string) {
-	id := getTeamID(client, org)
-	if id == 404 {
-		fmt.Println("Team id not found")
+func addTeamRepo(client *gitea.Client, org string, team string, repo string) {
+	// Find team ID
+	id := getTeamID(client, org, team)
+	if id == int64(404) {
+		fmt.Println("Team ID not found")
 		return
 	}
 	err := client.AddTeamRepository(id, org, repo)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+}
+
+//
+func addTeamMember(client *gitea.Client, org string, team string, user string) {
+	id := getTeamID(client, org, team)
+	if id == int64(404) {
+		fmt.Println("Team ID not found")
+		return
+	}
+	err := client.AddTeamMember(id, user)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -121,6 +136,7 @@ func printUsage() {
 	fmt.Println("createorgrepo\t- to create a repository in an organisation")
 	fmt.Println("createteam\t- to create a team in an organisation")
 	fmt.Println("addteamrepo\t- to add a repository to a team")
+	fmt.Println("addteammember\t- to add a member to a team")
 }
 
 func main() {
@@ -157,13 +173,21 @@ func main() {
 	createOrgRepoDescFlag := createorgrepo.String("d", "", "Repository description.")
 	orgFlag := createorgrepo.String("o", "", "In which organisation to create the repo.")
 
+	// Flag set create a team
 	createteam := flag.NewFlagSet("createteam", flag.ExitOnError)
 	orgFlag = createteam.String("o", "", "In which organisation to create the team.")
 	teamNameFlag := createteam.String("n", "", "The name of the team.")
 
+	// Flag set to add repo to team
 	addteamrepo := flag.NewFlagSet("addteamrepo", flag.ExitOnError)
 	orgFlag = addteamrepo.String("o", "", "Which organisation contains the team.")
+	teamFlag := addteamrepo.String("t", "", "Name of the team")
 	repoFlag := addteamrepo.String("r", "", "Name of the repository")
+
+	addteammember := flag.NewFlagSet("addteammember", flag.ExitOnError)
+	orgFlag = addteammember.String("o", "", "Which organisation contains the team.")
+	teamFlag = addteammember.String("t", "", "Name of the team")
+	userFlag := addteammember.String("u", "", "Name of the user to add")
 
 	// A subcommand is needed
 	if len(os.Args) < 2 {
@@ -204,10 +228,17 @@ func main() {
 		}
 	case "addteamrepo":
 		addteamrepo.Parse(os.Args[2:])
-		if *orgFlag != "" && *repoFlag != "" {
-			addTeamRepo(client, *orgFlag, *repoFlag)
+		if *orgFlag != "" && *repoFlag != "" && *teamFlag != "" {
+			addTeamRepo(client, *orgFlag, *teamFlag, *repoFlag)
 		} else {
 			addteamrepo.Usage()
+		}
+	case "addteammember":
+		addteammember.Parse(os.Args[2:])
+		if *orgFlag != "" && *userFlag != "" && *teamFlag != "" {
+			addTeamMember(client, *orgFlag, *teamFlag, *userFlag)
+		} else {
+			addteammember.Usage()
 		}
 	default:
 		printUsage()
