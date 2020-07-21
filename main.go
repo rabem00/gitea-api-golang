@@ -74,12 +74,10 @@ func createTeam(client *gitea.Client, org string, name string) {
 }
 
 func createBranchProtection(client *gitea.Client, owner string, repo string) {
-	fmt.Println("hello")
 	var setBranchProcOpt gitea.CreateBranchProtectionOption
 	setBranchProcOpt.BranchName = "master"
-	setBranchProcOpt.EnablePush = true
+	//setBranchProcOpt.EnablePush = true
 
-	fmt.Println("Yoo")
 	_, err := client.CreateBranchProtection(owner, repo, setBranchProcOpt)
 	if err != nil {
 		fmt.Println(err)
@@ -229,7 +227,7 @@ func main() {
 	pubkeyFlag := createuserpub.String("p", "", "The public key to add")
 
 	createbranchprotection := flag.NewFlagSet("createbranchprotection", flag.ExitOnError)
-	ownerFlag := createbranchprotection.String("m", "", "Name of the user")
+	ownerFlag := createbranchprotection.String("m", "", "Name of the owner (usually the team")
 	repoFlag := createbranchprotection.String("r", "", "Name of the repository")
 
 	// A subcommand is needed
