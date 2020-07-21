@@ -38,7 +38,6 @@ func createOrgRepo(client *gitea.Client, name string, description string, organi
 		fmt.Println(err)
 		return
 	}
-
 	var setRepoOptions gitea.CreateRepoOption
 	setRepoOptions.AutoInit = true
 	setRepoOptions.DefaultBranch = "master"
@@ -72,6 +71,20 @@ func createTeam(client *gitea.Client, org string, name string) {
 		return
 	}
 	fmt.Println(team.Name + " created.")
+}
+
+func createBranchProtection(client *gitea.Client, owner string, repo string) {
+	fmt.Println("hello")
+	var setBranchProcOpt gitea.CreateBranchProtectionOption
+	setBranchProcOpt.BranchName = "master"
+	setBranchProcOpt.EnablePush = true
+
+	fmt.Println("Yoo")
+	_, err := client.CreateBranchProtection(owner, repo, setBranchProcOpt)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 }
 
 func listAllReposOrg(client *gitea.Client, name string) {
@@ -154,9 +167,10 @@ func printUsage() {
 	fmt.Println("createorg\t- to create an organisation")
 	fmt.Println("createorgrepo\t- to create a repository in an organisation")
 	fmt.Println("createteam\t- to create a team in an organisation")
+	fmt.Println("createuserpub\t- to add a public key to an user")
+	fmt.Println("createbranchprotection\t- to add branch protection for a repo")
 	fmt.Println("addteamrepo\t- to add a repository to a team")
 	fmt.Println("addteammember\t- to add a member to a team")
-	fmt.Println("createuserpub\t- to add a public key to an user")
 }
 
 func main() {
@@ -184,35 +198,39 @@ func main() {
 
 	// Flag set create an organisation
 	createorg := flag.NewFlagSet("createorg", flag.ExitOnError)
-	createOrgFlag := createorg.String("co", "", "Create a workspace (eq organisation).")
-	createOrgDescFlag := createorg.String("cod", "", "Workspace (eq organisation) description.")
+	createOrgFlag := createorg.String("o", "", "Create a workspace (eq organisation).")
+	createOrgDescFlag := createorg.String("d", "", "Workspace (eq organisation) description.")
 
 	// Flag set create organisation repository
 	createorgrepo := flag.NewFlagSet("createorgrepo", flag.ExitOnError)
-	createOrgRepoFlag := createorgrepo.String("r", "", "Create a repository in a workspace (eq organisation).")
-	createOrgRepoDescFlag := createorgrepo.String("d", "", "Repository description.")
-	orgFlag := createorgrepo.String("o", "", "In which organisation to create the repo.")
+	nameFlag := createorgrepo.String("n", "", "Repositoryname.")
+	descFlag := createorgrepo.String("d", "", "Repository description.")
+	orFlag := createorgrepo.String("o", "", "In which organisation to create the repo.")
 
 	// Flag set create a team
 	createteam := flag.NewFlagSet("createteam", flag.ExitOnError)
-	orgFlag = createteam.String("o", "", "In which organisation to create the team.")
+	orgFlag := createteam.String("o", "", "In which organisation to create the team.")
 	teamNameFlag := createteam.String("n", "", "The name of the team.")
 
 	// Flag set to add repo to team
 	addteamrepo := flag.NewFlagSet("addteamrepo", flag.ExitOnError)
-	orgFlag = addteamrepo.String("o", "", "Which organisation contains the team.")
-	teamFlag := addteamrepo.String("t", "", "Name of the team")
-	repoFlag := addteamrepo.String("r", "", "Name of the repository")
+	orgTeamFlag := addteamrepo.String("o", "", "Which organisation contains the team.")
+	nameTeamFlag := addteamrepo.String("n", "", "Name of the team")
+	repoTeamFlag := addteamrepo.String("r", "", "Name of the repository")
 
 	addteammember := flag.NewFlagSet("addteammember", flag.ExitOnError)
-	orgFlag = addteammember.String("o", "", "Which organisation contains the team.")
-	teamFlag = addteammember.String("t", "", "Name of the team")
-	userFlag := addteammember.String("u", "", "Name of the user to add")
+	orgMemFlag := addteammember.String("o", "", "Which organisation contains the team.")
+	teamFlag := addteammember.String("t", "", "Name of the team")
+	userMemFlag := addteammember.String("u", "", "Name of the user to add")
 
 	createuserpub := flag.NewFlagSet("createuserpub", flag.ExitOnError)
-	userFlag = createuserpub.String("u", "", "Name of the user")
+	userFlag := createuserpub.String("u", "", "Name of the user")
 	titleFlag := createuserpub.String("i", "", "Title of the key to add")
 	pubkeyFlag := createuserpub.String("p", "", "The public key to add")
+
+	createbranchprotection := flag.NewFlagSet("createbranchprotection", flag.ExitOnError)
+	ownerFlag := createbranchprotection.String("m", "", "Name of the user")
+	repoFlag := createbranchprotection.String("r", "", "Name of the repository")
 
 	// A subcommand is needed
 	if len(os.Args) < 2 {
@@ -239,8 +257,8 @@ func main() {
 	// Create a repository in an organisation
 	case "createorgrepo":
 		createorgrepo.Parse(os.Args[2:])
-		if *createOrgRepoFlag != "" && *createOrgRepoDescFlag != "" && *orgFlag != "" {
-			createOrgRepo(client, *createOrgRepoFlag, *createOrgRepoDescFlag, *orgFlag)
+		if *nameFlag != "" && *descFlag != "" && *orFlag != "" {
+			createOrgRepo(client, *nameFlag, *descFlag, *orFlag)
 		} else {
 			createorgrepo.Usage()
 		}
@@ -253,15 +271,15 @@ func main() {
 		}
 	case "addteamrepo":
 		addteamrepo.Parse(os.Args[2:])
-		if *orgFlag != "" && *repoFlag != "" && *teamFlag != "" {
-			addTeamRepo(client, *orgFlag, *teamFlag, *repoFlag)
+		if *orgTeamFlag != "" && *repoTeamFlag != "" && *nameTeamFlag != "" {
+			addTeamRepo(client, *orgTeamFlag, *nameTeamFlag, *repoTeamFlag)
 		} else {
 			addteamrepo.Usage()
 		}
 	case "addteammember":
 		addteammember.Parse(os.Args[2:])
-		if *orgFlag != "" && *userFlag != "" && *teamFlag != "" {
-			addTeamMember(client, *orgFlag, *teamFlag, *userFlag)
+		if *orgMemFlag != "" && *userMemFlag != "" && *teamFlag != "" {
+			addTeamMember(client, *orgMemFlag, *teamFlag, *userMemFlag)
 		} else {
 			addteammember.Usage()
 		}
@@ -271,6 +289,13 @@ func main() {
 			createUserPub(client, *userFlag, *titleFlag, *pubkeyFlag)
 		} else {
 			createuserpub.Usage()
+		}
+	case "createbranchprotection":
+		createbranchprotection.Parse(os.Args[2:])
+		if *ownerFlag != "" && *repoFlag != "" {
+			createBranchProtection(client, *ownerFlag, *repoFlag)
+		} else {
+			createbranchprotection.Usage()
 		}
 	default:
 		printUsage()
