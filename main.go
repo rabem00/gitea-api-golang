@@ -39,9 +39,15 @@ func createOrgRepo(client *gitea.Client, name string, description string, organi
 		return
 	}
 
+	var setRepoOptions gitea.CreateRepoOption
+	setRepoOptions.AutoInit = true
+	setRepoOptions.DefaultBranch = "master"
+	setRepoOptions.Name = name
+	setRepoOptions.Description = description
+	setRepoOptions.Private = true
+
 	if len(repos) == 0 {
-		// TODO: for now only private repos
-		repo, err := client.CreateOrgRepo(organisation, gitea.CreateRepoOption{Name: name, Description: description, Private: true})
+		repo, err := client.CreateOrgRepo(organisation, setRepoOptions)
 		if err != nil {
 			fmt.Println(err)
 			return
