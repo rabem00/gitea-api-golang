@@ -2,7 +2,7 @@
 Using gitea-sdk go packages to create content in gitea.
 Only the some API endpoints are are used for a specific project.
 
-'''bash
+```bash
 Usage:
 % ./gitea-api-golang                                           
 Expected a subcommand:
@@ -24,4 +24,4 @@ Usage of createorg:
 
 
 % ./gitea-api-golang createorg -o myorg -d "My organisation"
-'''
+```
