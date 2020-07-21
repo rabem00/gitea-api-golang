@@ -22,7 +22,7 @@ func createOrg(client *gitea.Client, name string, description string) {
 		if err.Error() == "404 Not Found" {
 			org, err = client.CreateOrg(gitea.CreateOrgOption{UserName: name, Visibility: "private"})
 			if err != nil {
-				// TODO: return values
+				fmt.Println(err)
 				return
 			}
 			fmt.Printf("Organisation %s created.\n", org.UserName)
@@ -102,7 +102,6 @@ func getTeamID(client *gitea.Client, org string, teamName string) (id int64) {
 }
 
 func addTeamRepo(client *gitea.Client, org string, team string, repo string) {
-	// Find team ID
 	id := getTeamID(client, org, team)
 	if id == int64(404) {
 		fmt.Println("Team ID not found")
@@ -129,6 +128,20 @@ func addTeamMember(client *gitea.Client, org string, team string, user string) {
 	}
 }
 
+func createUserPub(client *gitea.Client, user string, title string, pubkey string) {
+	var setUserOptions gitea.CreateKeyOption
+
+	setUserOptions.ReadOnly = false
+	setUserOptions.Title = title
+	setUserOptions.Key = pubkey
+
+	_, err := client.AdminCreateUserPublicKey(user, setUserOptions)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+}
+
 func printUsage() {
 	fmt.Println("Expected a subcommand:")
 	fmt.Println("listrepos\t- list repositories of an organisation")
@@ -137,6 +150,7 @@ func printUsage() {
 	fmt.Println("createteam\t- to create a team in an organisation")
 	fmt.Println("addteamrepo\t- to add a repository to a team")
 	fmt.Println("addteammember\t- to add a member to a team")
+	fmt.Println("createuserpub\t- to add a public key to an user")
 }
 
 func main() {
@@ -189,6 +203,11 @@ func main() {
 	teamFlag = addteammember.String("t", "", "Name of the team")
 	userFlag := addteammember.String("u", "", "Name of the user to add")
 
+	createuserpub := flag.NewFlagSet("createuserpub", flag.ExitOnError)
+	userFlag = createuserpub.String("u", "", "Name of the user")
+	titleFlag := createuserpub.String("i", "", "Title of the key to add")
+	pubkeyFlag := createuserpub.String("p", "", "The public key to add")
+
 	// A subcommand is needed
 	if len(os.Args) < 2 {
 		printUsage()
@@ -239,6 +258,13 @@ func main() {
 			addTeamMember(client, *orgFlag, *teamFlag, *userFlag)
 		} else {
 			addteammember.Usage()
+		}
+	case "createuserpub":
+		createuserpub.Parse(os.Args[2:])
+		if *userFlag != "" && *titleFlag != "" && *pubkeyFlag != "" {
+			createUserPub(client, *userFlag, *titleFlag, *pubkeyFlag)
+		} else {
+			createuserpub.Usage()
 		}
 	default:
 		printUsage()
