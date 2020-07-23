@@ -9,6 +9,8 @@ import (
 	"code.gitea.io/sdk/gitea"
 )
 
+var clientVersion = "1.0"
+
 type Giteaconf struct {
 	Baseurl string `json:"baseurl"`
 	Token   string `json:"token"`
@@ -73,7 +75,7 @@ func createTeam(client *gitea.Client, org string, name string) {
 	fmt.Println(team.Name + " created.")
 }
 
-func createBranchProtection(client *gitea.Client, owner string, repo string) {
+func branchProtection(client *gitea.Client, owner string, repo string) {
 	var setBranchProcOpt gitea.CreateBranchProtectionOption
 	setBranchProcOpt.BranchName = "master"
 	//setBranchProcOpt.EnablePush = true
@@ -98,7 +100,7 @@ func listAllReposOrg(client *gitea.Client, name string) {
 	}
 	// Print name of each repo we got in repos
 	for _, repo := range repos {
-		fmt.Printf("Repo name %s \n", repo.Name)
+		fmt.Printf("%s \n", repo.Name)
 	}
 }
 
@@ -131,7 +133,19 @@ func addTeamRepo(client *gitea.Client, org string, team string, repo string) {
 	}
 }
 
-//
+func removeTeamRepo(client *gitea.Client, org string, team string, repo string) {
+	id := getTeamID(client, org, team)
+	if id == int64(404) {
+		fmt.Println("Team ID not found")
+		return
+	}
+	err := client.RemoveTeamRepository(id, org, repo)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+}
+
 func addTeamMember(client *gitea.Client, org string, team string, user string) {
 	id := getTeamID(client, org, team)
 	if id == int64(404) {
@@ -139,6 +153,19 @@ func addTeamMember(client *gitea.Client, org string, team string, user string) {
 		return
 	}
 	err := client.AddTeamMember(id, user)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+}
+
+func removeTeamMember(client *gitea.Client, org string, team string, user string) {
+	id := getTeamID(client, org, team)
+	if id == int64(404) {
+		fmt.Println("Team ID not found")
+		return
+	}
+	err := client.RemoveTeamMember(id, user)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -159,16 +186,28 @@ func createUserPub(client *gitea.Client, user string, title string, pubkey strin
 	}
 }
 
+func getVersion(client *gitea.Client) (serverVersion string) {
+	serverVersion, err := client.ServerVersion()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	return serverVersion
+}
+
 func printUsage() {
 	fmt.Println("Expected a subcommand:")
-	fmt.Println("listrepos\t- list repositories of an organisation")
-	fmt.Println("createorg\t- to create an organisation")
-	fmt.Println("createorgrepo\t- to create a repository in an organisation")
-	fmt.Println("createteam\t- to create a team in an organisation")
-	fmt.Println("createuserpub\t- to add a public key to an user")
-	fmt.Println("createbranchprotection\t- to add branch protection for a repo")
-	fmt.Println("addteamrepo\t- to add a repository to a team")
-	fmt.Println("addteammember\t- to add a member to a team")
+	fmt.Println("version\t\t\t- list version information of client and server")
+	fmt.Println("listrepos\t\t- list repositories of an organisation")
+	fmt.Println("createorg\t\t- to create an organisation")
+	fmt.Println("createorgrepo\t\t- to create a repository in an organisation")
+	fmt.Println("createteam\t\t- to create a team in an organisation")
+	fmt.Println("createuserpub\t\t- to add a public key to an user")
+	fmt.Println("branchprotection\t- to add branch protection for a repo")
+	fmt.Println("addteamrepo\t\t- to add a repository to a team")
+	fmt.Println("addteammember\t\t- to add a member to a team")
+	fmt.Println("removeteamrepo\t\t- to remove a repository from a team")
+	fmt.Println("removeteammember\t- to remove a member from a team")
 }
 
 func main() {
@@ -190,6 +229,8 @@ func main() {
 
 	// Setup new API connection
 	client := gitea.NewClient(giteaconf.Baseurl, giteaconf.Token)
+
+	version := flag.NewFlagSet("version", flag.ExitOnError)
 
 	listrepos := flag.NewFlagSet("listrepos", flag.ExitOnError)
 	listReposFlag := listrepos.String("o", "", "Which organisation to list the repos of.")
@@ -214,21 +255,32 @@ func main() {
 	addteamrepo := flag.NewFlagSet("addteamrepo", flag.ExitOnError)
 	orgTeamFlag := addteamrepo.String("o", "", "Which organisation contains the team.")
 	nameTeamFlag := addteamrepo.String("n", "", "Name of the team")
-	repoTeamFlag := addteamrepo.String("r", "", "Name of the repository")
+	repoTeamFlag := addteamrepo.String("r", "", "Name of the repository to add")
+
+	// Flag set to add repo to team
+	removeteamrepo := flag.NewFlagSet("removeteamrepo", flag.ExitOnError)
+	rmOrgTeamFlag := removeteamrepo.String("o", "", "Which organisation contains the team.")
+	rmNameTeamFlag := removeteamrepo.String("n", "", "Name of the team")
+	rmRepoTeamFlag := removeteamrepo.String("r", "", "Name of the repository to remove")
 
 	addteammember := flag.NewFlagSet("addteammember", flag.ExitOnError)
 	orgMemFlag := addteammember.String("o", "", "Which organisation contains the team.")
 	teamFlag := addteammember.String("t", "", "Name of the team")
 	userMemFlag := addteammember.String("u", "", "Name of the user to add")
 
+	removeteammember := flag.NewFlagSet("removeteammember", flag.ExitOnError)
+	rmOrgMemFlag := removeteammember.String("o", "", "Which organisation contains the team.")
+	rmTeamFlag := removeteammember.String("t", "", "Name of the team")
+	rmUserMemFlag := removeteammember.String("u", "", "Name of the user to remove")
+
 	createuserpub := flag.NewFlagSet("createuserpub", flag.ExitOnError)
 	userFlag := createuserpub.String("u", "", "Name of the user")
 	titleFlag := createuserpub.String("i", "", "Title of the key to add")
 	pubkeyFlag := createuserpub.String("p", "", "The public key to add")
 
-	createbranchprotection := flag.NewFlagSet("createbranchprotection", flag.ExitOnError)
-	ownerFlag := createbranchprotection.String("m", "", "Name of the owner (usually the team")
-	repoFlag := createbranchprotection.String("r", "", "Name of the repository")
+	branchprotection := flag.NewFlagSet("branchprotection", flag.ExitOnError)
+	ownerFlag := branchprotection.String("m", "", "Name of the owner (usually the team")
+	repoFlag := branchprotection.String("r", "", "Name of the repository")
 
 	// A subcommand is needed
 	if len(os.Args) < 2 {
@@ -237,6 +289,10 @@ func main() {
 	}
 
 	switch os.Args[1] {
+	case "version":
+		version.Parse(os.Args[2:])
+		fmt.Println("Client version: " + clientVersion)
+		fmt.Println("Server version: " + getVersion(client))
 	case "listrepos":
 		listrepos.Parse(os.Args[2:])
 		if *listReposFlag != "" {
@@ -274,12 +330,26 @@ func main() {
 		} else {
 			addteamrepo.Usage()
 		}
+	case "removeteamrepo":
+		removeteamrepo.Parse(os.Args[2:])
+		if *rmOrgTeamFlag != "" && *rmRepoTeamFlag != "" && *rmNameTeamFlag != "" {
+			removeTeamRepo(client, *rmOrgTeamFlag, *rmNameTeamFlag, *rmRepoTeamFlag)
+		} else {
+			removeteamrepo.Usage()
+		}
 	case "addteammember":
 		addteammember.Parse(os.Args[2:])
 		if *orgMemFlag != "" && *userMemFlag != "" && *teamFlag != "" {
 			addTeamMember(client, *orgMemFlag, *teamFlag, *userMemFlag)
 		} else {
 			addteammember.Usage()
+		}
+	case "removeteammember":
+		removeteammember.Parse(os.Args[2:])
+		if *rmOrgMemFlag != "" && *rmUserMemFlag != "" && *rmTeamFlag != "" {
+			removeTeamMember(client, *rmOrgMemFlag, *rmTeamFlag, *rmUserMemFlag)
+		} else {
+			removeteammember.Usage()
 		}
 	case "createuserpub":
 		createuserpub.Parse(os.Args[2:])
@@ -288,12 +358,12 @@ func main() {
 		} else {
 			createuserpub.Usage()
 		}
-	case "createbranchprotection":
-		createbranchprotection.Parse(os.Args[2:])
+	case "branchprotection":
+		branchprotection.Parse(os.Args[2:])
 		if *ownerFlag != "" && *repoFlag != "" {
-			createBranchProtection(client, *ownerFlag, *repoFlag)
+			branchProtection(client, *ownerFlag, *repoFlag)
 		} else {
-			createbranchprotection.Usage()
+			branchprotection.Usage()
 		}
 	default:
 		printUsage()
