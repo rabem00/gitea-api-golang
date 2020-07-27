@@ -10,6 +10,7 @@ import (
 )
 
 var clientVersion = "1.0"
+var configFile *os.File
 
 type Giteaconf struct {
 	Baseurl string `json:"baseurl"`
@@ -211,10 +212,19 @@ func printUsage() {
 }
 
 func main() {
-	// Open the config file
-	configFile, err := os.Open("api-config.json")
-	if err != nil {
-		fmt.Println(err)
+	if _, err := os.Stat("/etc/gitea/config.json"); !os.IsNotExist(err) {
+		configFile, err = os.Open("config.json")
+		if err != nil {
+			fmt.Println(err)
+		}
+	} else if _, err := os.Stat("config.json"); !os.IsNotExist(err) {
+		configFile, err = os.Open("config.json")
+		if err != nil {
+			fmt.Println(err)
+		}
+	} else {
+		fmt.Println("Config file not found!")
+		os.Exit(1)
 	}
 	// Defer the closing of the config file so that we can parse it later on
 	defer configFile.Close()
@@ -222,7 +232,7 @@ func main() {
 	var giteaconf Giteaconf
 
 	decoder := json.NewDecoder(configFile)
-	err = decoder.Decode(&giteaconf)
+	err := decoder.Decode(&giteaconf)
 	if err != nil {
 		fmt.Println(err)
 	}
