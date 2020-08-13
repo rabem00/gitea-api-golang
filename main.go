@@ -9,7 +9,7 @@ import (
 	"code.gitea.io/sdk/gitea"
 )
 
-var clientVersion = "1.0.3"
+var clientVersion = "1.0.4"
 var configFile *os.File
 
 type Giteaconf struct {
@@ -104,10 +104,12 @@ func createTeam(client *gitea.Client, org string, name string) {
 	fmt.Println(team.Name + " created.")
 }
 
-func branchProtection(client *gitea.Client, owner string, repo string) {
+func branchProtection(client *gitea.Client, owner string, repo string, whitelistteam string) {
 	var setBranchProcOpt gitea.CreateBranchProtectionOption
+
 	setBranchProcOpt.BranchName = "master"
-	//setBranchProcOpt.EnablePush = true
+	setBranchProcOpt.EnableMergeWhitelist = true
+	setBranchProcOpt.MergeWhitelistTeams = []string{whitelistteam}
 
 	_, err := client.CreateBranchProtection(owner, repo, setBranchProcOpt)
 	if err != nil {
@@ -330,6 +332,7 @@ func main() {
 	branchprotection := flag.NewFlagSet("branchprotection", flag.ExitOnError)
 	ownerFlag := branchprotection.String("m", "", "Name of the owner (usually the team")
 	repoFlag := branchprotection.String("r", "", "Name of the repository")
+	whiteFlag := branchprotection.String("w", "", "Whitelist team approve merge/pull requests")
 
 	// A subcommand is needed
 	if len(os.Args) < 2 {
@@ -425,8 +428,8 @@ func main() {
 		}
 	case "branchprotection":
 		branchprotection.Parse(os.Args[2:])
-		if *ownerFlag != "" && *repoFlag != "" {
-			branchProtection(client, *ownerFlag, *repoFlag)
+		if *ownerFlag != "" && *repoFlag != "" && *whiteFlag != "" {
+			branchProtection(client, *ownerFlag, *repoFlag, *whiteFlag)
 		} else {
 			branchprotection.Usage()
 		}
