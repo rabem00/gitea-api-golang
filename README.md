@@ -1,6 +1,6 @@
-## Gitea
-Using gitea-sdk go packages to create content in gitea.
-Only the some API endpoints are are used because this is for a specific project.
+## Gitea-client
+Using gitea-sdk golang package to create content in gitea.
+Only some API endpoints are used, because this is only used for a specific project.
 
 ```bash
 Usage:
